@@ -61,4 +61,3 @@ def augment(*args, hflip=True, rot=True):
         return img
 
     return [_augment(a) for a in args]
-

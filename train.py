@@ -3,7 +3,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from model import architecture, esrt
+# from model import architecture, esrt
+from model import esrt
 from data import DIV2K, Set5_val
 import utils
 import skimage.color as sc
@@ -11,6 +12,7 @@ import random
 from collections import OrderedDict
 import datetime
 from importlib import import_module
+
 # os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 # Training settings
@@ -76,17 +78,17 @@ print("===> Loading datasets")
 
 trainset = DIV2K.div2k(args)
 testset = Set5_val.DatasetFromFolderVal("Test_Datasets/Set5/",
-                                       "Test_Datasets/Set5_LR/x{}/".format(args.scale),
-                                       args.scale)
-training_data_loader = DataLoader(dataset=trainset, num_workers=args.threads, batch_size=args.batch_size, shuffle=True, pin_memory=True, drop_last=True)
+                                        "Test_Datasets/Set5_LR/x{}/".format(args.scale),
+                                        args.scale)
+training_data_loader = DataLoader(dataset=trainset, num_workers=args.threads, batch_size=args.batch_size, shuffle=True,
+                                  pin_memory=True, drop_last=True)
 testing_data_loader = DataLoader(dataset=testset, num_workers=args.threads, batch_size=args.testBatchSize,
                                  shuffle=False)
 
 print("===> Building models")
 args.is_train = True
 
-
-model = esrt.ESRT(upscale = args.scale)#architecture.IMDN(upscale=args.scale)
+model = esrt.ESRT(upscale=args.scale)  # architecture.IMDN(upscale=args.scale)
 
 l1_criterion = nn.L1Loss()
 
@@ -143,9 +145,11 @@ def train(epoch):
         if iteration % 100 == 0:
             print("===> Epoch[{}]({}/{}): Loss_l1: {:.5f}".format(epoch, iteration, len(training_data_loader),
                                                                   loss_l1.item()))
+
+
 def forward_chop(model, x, scale, shave=10, min_size=60000):
     # scale = scale#self.scale[self.idx_scale]
-    n_GPUs = 1#min(self.n_GPUs, 4)
+    n_GPUs = 1  # min(self.n_GPUs, 4)
     b, c, h, w = x.size()
     h_half, w_half = h // 2, w // 2
     h_size, w_size = h_half + shave, w_half + shave
@@ -184,6 +188,7 @@ def forward_chop(model, x, scale, shave=10, min_size=60000):
 
     return output
 
+
 def valid(scale):
     model.eval()
 
@@ -195,7 +200,7 @@ def valid(scale):
             hr_tensor = hr_tensor.to(device)
 
         with torch.no_grad():
-            pre = forward_chop(model, lr_tensor, scale)#model(lr_tensor)
+            pre = forward_chop(model, lr_tensor, scale)  # model(lr_tensor)
 
         sr_img = utils.tensor2np(pre.detach()[0])
         gt_img = utils.tensor2np(hr_tensor.detach()[0])
@@ -212,7 +217,8 @@ def valid(scale):
         # print(im_label.shape)
         avg_psnr += utils.compute_psnr(im_pre, im_label)
         avg_ssim += utils.compute_ssim(im_pre, im_label)
-    print("===> Valid. psnr: {:.4f}, ssim: {:.4f}".format(avg_psnr / len(testing_data_loader), avg_ssim / len(testing_data_loader)))
+    print("===> Valid. psnr: {:.4f}, ssim: {:.4f}".format(avg_psnr / len(testing_data_loader),
+                                                          avg_ssim / len(testing_data_loader)))
 
 
 def save_checkpoint(epoch):
@@ -223,12 +229,14 @@ def save_checkpoint(epoch):
     torch.save(model.state_dict(), model_out_path)
     print("===> Checkpoint saved to {}".format(model_out_path))
 
+
 def print_network(net):
     num_params = 0
     for param in net.parameters():
         num_params += param.numel()
     # print(net)
     print('Total number of parameters: %d' % num_params)
+
 
 print("===> Training")
 print_network(model)
@@ -239,14 +247,14 @@ for epoch in range(args.start_epoch, args.nEpochs + 1):
     epoch_start = datetime.datetime.now()
     valid(args.scale)
     train(epoch)
-    if epoch%10==0:
+    if epoch % 10 == 0:
         save_checkpoint(epoch)
     epoch_end = datetime.datetime.now()
-    print('Epoch cost times: %s' % str(epoch_end-epoch_start))
+    print('Epoch cost times: %s' % str(epoch_end - epoch_start))
     t = timer.t()
-    prog = (epoch-args.start_epoch+1)/(args.nEpochs + 1 - args.start_epoch + 1)
+    prog = (epoch - args.start_epoch + 1) / (args.nEpochs + 1 - args.start_epoch + 1)
     t_epoch = utils.time_text(t - t_epoch_start)
     t_elapsed, t_all = utils.time_text(t), utils.time_text(t / prog)
     print('{} {}/{}'.format(t_epoch, t_elapsed, t_all))
 code_end = datetime.datetime.now()
-print('Code cost times: %s' % str(code_end-code_start))
+print('Code cost times: %s' % str(code_end - code_start))

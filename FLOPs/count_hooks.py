@@ -106,6 +106,7 @@ def count_sigmoid(m, x, y):
     total_ops = total_exp + total_add + total_div
     m.total_ops = torch.Tensor([int(total_ops)])
 
+
 def count_pixelshuffle(m, x, y):
     x = x[0]
     nelements = x.numel()

@@ -1,11 +1,15 @@
-from skimage.measure import compare_psnr as psnr
-from skimage.measure import compare_ssim as ssim
+# from skimage.measure import compare_psnr as psnr
+from skimage.metrics import peak_signal_noise_ratio as psnr
+# from skimage.measure import compare_ssim as ssim
+from skimage.metrics import structural_similarity as ssim
 import numpy as np
 import os
 import torch
 from collections import OrderedDict
 
 import time
+
+
 class Timer():
 
     def __init__(self):
@@ -25,6 +29,8 @@ def time_text(t):
         return '{:.1f}m'.format(t / 60)
     else:
         return '{:.1f}s'.format(t)
+
+
 def compute_psnr(im1, im2):
     p = psnr(im1, im2)
     return p
@@ -75,6 +81,7 @@ def tensor2np(tensor, out_type=np.uint8, min_max=(0, 1)):
 
     return img_np.astype(out_type)
 
+
 def convert2np(tensor):
     return tensor.cpu().mul(255).clamp(0, 255).byte().squeeze().permute(1, 2, 0).numpy()
 
@@ -85,8 +92,8 @@ def adjust_learning_rate(optimizer, epoch, step_size, lr_init, gamma):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-def load_state_dict(path):
 
+def load_state_dict(path):
     state_dict = torch.load(path)
     new_state_dcit = OrderedDict()
     for k, v in state_dict.items():

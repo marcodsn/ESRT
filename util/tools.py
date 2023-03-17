@@ -5,8 +5,10 @@ from PIL import Image
 
 import torch.nn.functional as F
 
+
 def normalize(x):
     return x.mul_(2).add_(-1)
+
 
 def same_padding(images, ksizes, strides, rates):
     assert len(images.size()) == 4
@@ -15,8 +17,8 @@ def same_padding(images, ksizes, strides, rates):
     out_cols = (cols + strides[1] - 1) // strides[1]
     effective_k_row = (ksizes[0] - 1) * rates[0] + 1
     effective_k_col = (ksizes[1] - 1) * rates[1] + 1
-    padding_rows = max(0, (out_rows-1)*strides[0]+effective_k_row-rows)
-    padding_cols = max(0, (out_cols-1)*strides[1]+effective_k_col-cols)
+    padding_rows = max(0, (out_rows - 1) * strides[0] + effective_k_row - rows)
+    padding_cols = max(0, (out_cols - 1) * strides[1] + effective_k_col - cols)
     # Pad the input
     padding_top = int(padding_rows / 2.)
     padding_left = int(padding_cols / 2.)
@@ -41,7 +43,7 @@ def extract_image_patches(images, ksizes, strides, rates, padding='same'):
     assert len(images.size()) == 4
     assert padding in ['same', 'valid']
     batch_size, channel, height, width = images.size()
-    
+
     if padding == 'same':
         images = same_padding(images, ksizes, strides, rates)
     elif padding == 'valid':
@@ -56,6 +58,8 @@ def extract_image_patches(images, ksizes, strides, rates, padding='same'):
                              stride=strides)
     patches = unfold(images)
     return patches  # [N, C*k*k, L], L is the total number of such blocks
+
+
 def reverse_patches(images, out_size, ksizes, strides, padding):
     """
     Extract patches from images and put them in the C output dimension.
@@ -67,13 +71,15 @@ def reverse_patches(images, out_size, ksizes, strides, padding):
     :param rates: [dilation_rows, dilation_cols]
     :return: A Tensor
     """
-    unfold = torch.nn.Fold(output_size = out_size, 
-                            kernel_size=ksizes, 
-                            dilation=1, 
-                            padding=padding, 
-                            stride=strides)
+    unfold = torch.nn.Fold(output_size=out_size,
+                           kernel_size=ksizes,
+                           dilation=1,
+                           padding=padding,
+                           stride=strides)
     patches = unfold(images)
     return patches  # [N, C*k*k, L], L is the total number of such blocks
+
+
 def reduce_mean(x, axis=None, keepdim=False):
     if not axis:
         axis = range(len(x.shape))

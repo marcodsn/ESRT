@@ -5,7 +5,7 @@ import numpy as np
 import utils
 import skimage.color as sc
 import cv2
-from model import  esrt
+from model import esrt
 
 # Testing settings
 
@@ -26,9 +26,11 @@ parser.add_argument("--is_y", action='store_true', default=True,
 opt = parser.parse_args()
 
 print(opt)
+
+
 def forward_chop(model, x, shave=10, min_size=60000):
-    scale = 4#self.scale[self.idx_scale]
-    n_GPUs = 1#min(self.n_GPUs, 4)
+    scale = 4  # self.scale[self.idx_scale]
+    n_GPUs = 1  # min(self.n_GPUs, 4)
     b, c, h, w = x.size()
     h_half, w_half = h // 2, w // 2
     h_size, w_size = h_half + shave, w_half + shave
@@ -66,6 +68,8 @@ def forward_chop(model, x, shave=10, min_size=60000):
         = sr_list[3][:, :, (h_size - h + h_half):h_size, (w_size - w + w_half):w_size]
 
     return output
+
+
 cuda = opt.cuda
 device = torch.device('cuda' if cuda else 'cpu')
 
@@ -80,9 +84,9 @@ psnr_list = np.zeros(len(filelist))
 ssim_list = np.zeros(len(filelist))
 time_list = np.zeros(len(filelist))
 
-model =  esrt.ESRT(upscale = opt.upscale_factor)#
+model = esrt.ESRT(upscale=opt.upscale_factor)  #
 model_dict = utils.load_state_dict(opt.checkpoint)
-model.load_state_dict(model_dict, strict=False)#True)
+model.load_state_dict(model_dict, strict=False)  # True)
 
 i = 0
 start = torch.cuda.Event(enable_timing=True)
@@ -91,7 +95,8 @@ end = torch.cuda.Event(enable_timing=True)
 for imname in filelist:
     im_gt = cv2.imread(imname, cv2.IMREAD_COLOR)[:, :, [2, 1, 0]]  # BGR to RGB
     im_gt = utils.modcrop(im_gt, opt.upscale_factor)
-    im_l = cv2.imread(opt.test_lr_folder + imname.split('/')[-1].split('.')[0] + 'x' + str(opt.upscale_factor) + ext, cv2.IMREAD_COLOR)[:, :, [2, 1, 0]]  # BGR to RGB
+    im_l = cv2.imread(opt.test_lr_folder + imname.split('/')[-1].split('.')[0] + 'x' + str(opt.upscale_factor) + ext,
+                      cv2.IMREAD_COLOR)[:, :, [2, 1, 0]]  # BGR to RGB
     if len(im_gt.shape) < 3:
         im_gt = im_gt[..., np.newaxis]
         im_gt = np.concatenate([im_gt] * 3, 2)
@@ -108,7 +113,7 @@ for imname in filelist:
 
     with torch.no_grad():
         start.record()
-        out = forward_chop(model, im_input) #model(im_input)
+        out = forward_chop(model, im_input)  # model(im_input)
         end.record()
         torch.cuda.synchronize()
         time_list[i] = start.elapsed_time(end)  # milliseconds
@@ -126,7 +131,6 @@ for imname in filelist:
     psnr_list[i] = utils.compute_psnr(im_pre, im_label)
     ssim_list[i] = utils.compute_ssim(im_pre, im_label)
 
-
     output_folder = os.path.join(opt.output_folder,
                                  imname.split('/')[-1].split('.')[0] + 'x' + str(opt.upscale_factor) + '.png')
 
@@ -135,6 +139,5 @@ for imname in filelist:
 
     cv2.imwrite(output_folder, out_img[:, :, [2, 1, 0]])
     i += 1
-
 
 print("Mean PSNR: {}, SSIM: {}, TIME: {} ms".format(np.mean(psnr_list), np.mean(ssim_list), np.mean(time_list)))
