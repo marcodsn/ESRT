@@ -4,18 +4,23 @@ import cv2
 import numpy as np
 from data import common
 
+
 def default_loader(path):
     return cv2.imread(path, cv2.IMREAD_UNCHANGED)[:, :, [2, 1, 0]]
 
+
 def npy_loader(path):
     return np.load(path)
+
 
 IMG_EXTENSIONS = [
     '.png', '.npy',
 ]
 
+
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
+
 
 def make_dataset(dir):
     images = []
@@ -34,9 +39,9 @@ class div2k(data.Dataset):
         self.opt = opt
         self.scale = self.opt.scale
         self.root = self.opt.root
-        self.ext = self.opt.ext   # '.png' or '.npy'(default)
+        self.ext = self.opt.ext  # '.png' or '.npy'(default)
         self.train = True if self.opt.phase == 'train' else False
-        self.repeat = 10#self.opt.test_every // (self.opt.n_train // self.opt.batch_size)
+        self.repeat = 10  # self.opt.test_every // (self.opt.n_train // self.opt.batch_size)
         self._set_filesystem(self.root)
         self.images_hr, self.images_lr = self._scan()
 

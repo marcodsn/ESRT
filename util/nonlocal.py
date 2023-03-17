@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 import pdb
 
+
 class _NonLocalBlockND(nn.Module):
     def __init__(self, in_channels, inter_channels=None, dimension=3, sub_sample=True, bn_layer=True):
         super(_NonLocalBlockND, self).__init__()
@@ -34,27 +35,27 @@ class _NonLocalBlockND(nn.Module):
         #     bn = nn.BatchNorm1d
 
         self.g = nn.Conv2d(in_channels=self.in_channels, out_channels=self.inter_channels,
-                         kernel_size=1, stride=1, padding=0)
+                           kernel_size=1, stride=1, padding=0)
 
         if bn_layer:
             self.W = nn.Sequential(
                 nn.Conv2d(in_channels=self.inter_channels, out_channels=self.in_channels,
-                        kernel_size=1, stride=1, padding=0),
+                          kernel_size=1, stride=1, padding=0),
                 bn(self.in_channels)
             )
             nn.init.constant_(self.W[1].weight, 0)
             nn.init.constant_(self.W[1].bias, 0)
         else:
             self.W = nn.Conv2d(in_channels=self.inter_channels, out_channels=self.in_channels,
-                             kernel_size=1, stride=1, padding=0)
+                               kernel_size=1, stride=1, padding=0)
             nn.init.constant_(self.W.weight, 0)
             nn.init.constant_(self.W.bias, 0)
 
         self.theta = nn.Conv2d(in_channels=self.in_channels, out_channels=self.inter_channels,
-                             kernel_size=1, stride=1, padding=0)
+                               kernel_size=1, stride=1, padding=0)
 
         self.phi = nn.Conv2d(in_channels=self.in_channels, out_channels=self.inter_channels,
-                           kernel_size=1, stride=1, padding=0)
+                             kernel_size=1, stride=1, padding=0)
 
         if sub_sample:
             self.g = nn.Sequential(self.g, nn.MaxPool2d(kernel_size=(2, 2)))
@@ -109,7 +110,6 @@ class NONLocalBlock3D(_NonLocalBlockND):
                                               inter_channels=inter_channels,
                                               dimension=3, sub_sample=sub_sample,
                                               bn_layer=bn_layer)
-
 
 # if __name__ == '__main__':
 #     import torch

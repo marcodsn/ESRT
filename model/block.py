@@ -74,16 +74,19 @@ class ShortcutBlock(nn.Module):
         output = x + self.sub(x)
         return output
 
+
 def mean_channels(F):
-    assert(F.dim() == 4)
+    assert (F.dim() == 4)
     spatial_sum = F.sum(3, keepdim=True).sum(2, keepdim=True)
     return spatial_sum / (F.size(2) * F.size(3))
 
+
 def stdv_channels(F):
-    assert(F.dim() == 4)
+    assert (F.dim() == 4)
     F_mean = mean_channels(F)
     F_variance = (F - F_mean).pow(2).sum(3, keepdim=True).sum(2, keepdim=True) / (F.size(2) * F.size(3))
     return F_variance.pow(0.5)
+
 
 def sequential(*args):
     if len(args) == 1:
@@ -99,7 +102,7 @@ def sequential(*args):
             modules.append(module)
     return nn.Sequential(*modules)
 
-    
+
 def pixelshuffle_block(in_channels, out_channels, upscale_factor=2, kernel_size=3, stride=1):
     conv = conv_layer(in_channels, out_channels * (upscale_factor ** 2), kernel_size, stride)
     pixel_shuffle = nn.PixelShuffle(upscale_factor)

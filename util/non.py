@@ -110,7 +110,6 @@ class NONLocalBlock3D(_NonLocalBlockND):
                                               dimension=3, sub_sample=sub_sample,
                                               bn_layer=bn_layer)
 
-
 # if __name__ == '__main__':
 #     import torch
 
