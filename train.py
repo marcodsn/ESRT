@@ -2,10 +2,11 @@ import argparse, os
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import wandb
 from torch.utils.data import DataLoader
 # from model import architecture, esrt
 from model import esrt
-from data import DIV2K, Set5_val
+from data import DIV2K, Set5_val, Common_val, Flickr8k
 import utils
 import skimage.color as sc
 import random
@@ -37,7 +38,7 @@ parser.add_argument("--start-epoch", default=1, type=int,
                     help="manual epoch number")
 parser.add_argument("--threads", type=int, default=8,
                     help="number of threads for data loading")
-parser.add_argument("--root", type=str, default="/data0/luzs/dataset/",
+parser.add_argument("--root", type=str, default="../dataset",
                     help='dataset directory')
 parser.add_argument("--n_train", type=int, default=800,
                     help="number of training set")
@@ -60,6 +61,10 @@ parser.add_argument("--ext", type=str, default='.npy')
 parser.add_argument("--phase", type=str, default='train')
 parser.add_argument("--model", type=str, default='ESRT')
 
+# New
+parser.add_argument("--training_set", type=str, default='DIV2K')
+parser.add_argument("--validation_set", type=str, default='Set5')
+
 args = parser.parse_args()
 print(args)
 torch.backends.cudnn.benchmark = True
@@ -71,15 +76,42 @@ print("Ramdom Seed: ", seed)
 random.seed(seed)
 torch.manual_seed(seed)
 
+# start a new wandb run to track this script
+wandb.init(
+    # set the wandb project where this run will be logged
+    project="ESRT",
+
+    # track hyperparameters and run metadata
+    config={
+        "learning_rate": args.lr,
+        "architecture": "ESRT",
+        "dataset": "DIV2K",
+        "epochs": args.nEpochs,
+        "batch_size": args.batch_size,
+        "scale": args.scale,
+        "patch_size": args.patch_size,
+        "optimizer": "Adam",
+    },
+
+    resume=False
+)
+
 cuda = args.cuda
 device = torch.device('cuda' if cuda else 'cpu')
 
 print("===> Loading datasets")
 
-trainset = DIV2K.div2k(args)
-testset = Set5_val.DatasetFromFolderVal("Test_Datasets/Set5/",
-                                        "Test_Datasets/Set5_LR/x{}/".format(args.scale),
-                                        args.scale)
+if args.training_set == 'DIV2K':
+    trainset = DIV2K.div2k(args)
+elif args.training_set == 'Flickr8k':
+    trainset = Flickr8k.Flickr8k(args)
+else:
+    raise ValueError('Training set not supported')
+
+testset_path = os.path.join(args.root, "/{}/".format(args.validation_set))
+testset = Common_val.DatasetFromFolderVal(testset_path,
+                                          testset_path + "X{}/".format(args.scale),
+                                          args.scale)
 training_data_loader = DataLoader(dataset=trainset, num_workers=args.threads, batch_size=args.batch_size, shuffle=True,
                                   pin_memory=True, drop_last=True)
 testing_data_loader = DataLoader(dataset=testset, num_workers=args.threads, batch_size=args.testBatchSize,
@@ -128,7 +160,12 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 def train(epoch):
     model.train()
     utils.adjust_learning_rate(optimizer, epoch, args.step_size, args.lr, args.gamma)
+
     print('epoch =', epoch, 'lr = ', optimizer.param_groups[0]['lr'])
+
+    running_loss = 0.0
+    epoch_loss = 0.0
+    print_step = len(training_data_loader) // 10
     for iteration, (lr_tensor, hr_tensor) in enumerate(training_data_loader, 1):
 
         if args.cuda:
@@ -140,11 +177,20 @@ def train(epoch):
         loss_l1 = l1_criterion(sr_tensor, hr_tensor)
         loss_sr = loss_l1
 
+        running_loss += loss_l1.item()
+        epoch_loss += loss_l1.item()
+
         loss_sr.backward()
         optimizer.step()
-        if iteration % 100 == 0:
-            print("===> Epoch[{}]({}/{}): Loss_l1: {:.5f}".format(epoch, iteration, len(training_data_loader),
-                                                                  loss_l1.item()))
+        if iteration % print_step == 0:
+            print("===> Epoch[{}]({}/{}): Loss_l1: {:.5f}".format(epoch,
+                                                                  iteration,
+                                                                  len(training_data_loader),
+                                                                  loss_l1.item(),
+                                                                  running_loss / print_step))
+            running_loss = 0.0
+
+    return epoch_loss / len(training_data_loader)
 
 
 def forward_chop(model, x, scale, shave=10, min_size=60000):
@@ -192,7 +238,7 @@ def forward_chop(model, x, scale, shave=10, min_size=60000):
 def valid(scale):
     model.eval()
 
-    avg_psnr, avg_ssim = 0, 0
+    avg_psnr, avg_ssim, loss_valid = 0.0, 0.0, 0.0
     for batch in testing_data_loader:
         lr_tensor, hr_tensor = batch[0], batch[1]
         if args.cuda:
@@ -207,6 +253,7 @@ def valid(scale):
         crop_size = args.scale
         cropped_sr_img = utils.shave(sr_img, crop_size)
         cropped_gt_img = utils.shave(gt_img, crop_size)
+        loss_valid = l1_criterion(pre, hr_tensor).item()
         if args.isY is True:
             im_label = utils.quantize(sc.rgb2ycbcr(cropped_gt_img)[:, :, 0])
             im_pre = utils.quantize(sc.rgb2ycbcr(cropped_sr_img)[:, :, 0])
@@ -217,12 +264,13 @@ def valid(scale):
         # print(im_label.shape)
         avg_psnr += utils.compute_psnr(im_pre, im_label)
         avg_ssim += utils.compute_ssim(im_pre, im_label)
-    print("===> Valid. psnr: {:.4f}, ssim: {:.4f}".format(avg_psnr / len(testing_data_loader),
-                                                          avg_ssim / len(testing_data_loader)))
+    # print("===> Valid. psnr: {:.4f}, ssim: {:.4f}".format(avg_psnr / len(testing_data_loader),
+    #                                                       avg_ssim / len(testing_data_loader)))
+    return avg_psnr / len(testing_data_loader), avg_ssim / len(testing_data_loader), loss_valid
 
 
 def save_checkpoint(epoch):
-    model_folder = "experiment/checkpoint_ESRT_x{}/".format(args.scale)
+    model_folder = "experiment/{}_checkpoint_ESRT_x{}/".format(args.training_set, args.scale)
     model_out_path = model_folder + "epoch_{}.pth".format(epoch)
     if not os.path.exists(model_folder):
         os.makedirs(model_folder)
@@ -245,8 +293,17 @@ timer = utils.Timer()
 for epoch in range(args.start_epoch, args.nEpochs + 1):
     t_epoch_start = timer.t()
     epoch_start = datetime.datetime.now()
-    valid(args.scale)
-    train(epoch)
+    loss = train(epoch)
+    psnr, ssim, valid_loss = valid(args.scale)
+
+    # log with wandb
+    wandb.log({'training_loss': loss,
+               # 'validation_loss': valid_loss_div2k,
+               'Set5_loss': valid_loss,
+               'psnr': psnr,
+               'ssim': ssim
+               })
+
     if epoch % 10 == 0:
         save_checkpoint(epoch)
     epoch_end = datetime.datetime.now()
