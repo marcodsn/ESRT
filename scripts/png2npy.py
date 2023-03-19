@@ -5,9 +5,9 @@ import numpy as np
 import pdb
 
 parser = argparse.ArgumentParser(description='Pre-processing .png images')
-parser.add_argument('--pathFrom', default='',
+parser.add_argument('--input_dir', default='',
                     help='directory of images to convert')
-parser.add_argument('--pathTo', default='',
+parser.add_argument('--output_dir', default='',
                     help='directory of images to save')
 parser.add_argument('--split', default=True,
                     help='save individual images')
@@ -16,9 +16,9 @@ parser.add_argument('--select', default='',
 
 args = parser.parse_args()
 
-for (path, dirs, files) in os.walk(args.pathFrom):
+for (path, dirs, files) in os.walk(args.input_dir):
     print(path)
-    targetDir = os.path.join(args.pathTo, path[len(args.pathFrom):])
+    targetDir = os.path.join(args.output_dir, path[len(args.input_dir):])
     # pdb.set_trace()
     if len(args.select) > 0 and path.find(args.select) == -1:
         continue
