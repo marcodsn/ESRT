@@ -9,6 +9,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--scale_factor", type=float, required=True, help="scale factor for downscaling")
 parser.add_argument("--input_dir", type=str, required=True, help="path to input directory")
 parser.add_argument("--output_dir", type=str, required=True, help="path to output directory")
+parser.add_argument("--print_step", type=int, default=10, help="print progress every print_step images")
 args = parser.parse_args()
 
 # Create output directory if it doesn't exist
@@ -39,6 +40,6 @@ for file_name in os.listdir(args.input_dir):
         resized_img.save(output_path)
 
         # Print progress
-        if i % 10 == 0:
+        if i % args.print_step == 0:
             print(f"Resized image {i} of {len(os.listdir(args.input_dir))}")
         i = i + 1
