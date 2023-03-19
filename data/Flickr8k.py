@@ -46,7 +46,7 @@ class Flickr8k(data.Dataset):
         self.images_hr, self.images_lr = self._scan()
 
     def _set_filesystem(self, dir_data):
-        self.root = dir_data + '/Flickr8k_decoded'
+        self.root = os.path.join(dir_data, 'Flickr8k_decoded')
         self.dir_hr = os.path.join(self.root, 'HR')
         self.dir_lr = os.path.join(self.root, 'LR/X' + str(self.scale))
 

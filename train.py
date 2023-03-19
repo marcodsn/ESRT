@@ -108,7 +108,7 @@ elif args.training_set == 'Flickr8k':
 else:
     raise ValueError('Training set not supported')
 
-testset_path = os.path.join(args.root, "/{}/".format(args.validation_set))
+testset_path = os.path.join(args.root, "{}/".format(args.validation_set))
 testset = Common_val.DatasetFromFolderVal(testset_path,
                                           testset_path + "X{}/".format(args.scale),
                                           args.scale)
