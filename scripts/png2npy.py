@@ -32,7 +32,7 @@ for (path, dirs, files) in os.walk(args.pathFrom):
         for fileName in files:
             (idx, ext) = os.path.splitext(fileName)
             # pdb.set_trace()
-            if ext == '.png':
+            if ext == '.png' or ext == '.jpg':
                 image = sio.imread(os.path.join(path, fileName))
                 if args.split:
                     np.save(os.path.join(targetDir, idx + '.npy'), image)
