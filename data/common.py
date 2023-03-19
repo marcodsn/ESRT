@@ -10,8 +10,17 @@ def get_patch(*args, patch_size, scale):
     tp = patch_size  # target patch (HR)
     ip = tp // scale  # input patch (LR)
 
-    ix = random.randrange(0, iw - ip + 1)
-    iy = random.randrange(0, ih - ip + 1)
+    # print(ih, iw, tp, ip)
+    # ix = random.randrange(0, iw - ip + 1)
+    # iy = random.randrange(0, ih - ip + 1)
+
+    if ip >= iw or ip >= ih:
+        ix = 0
+        iy = 0
+    else:
+        ix = random.randrange(0, iw - ip + 1)
+        iy = random.randrange(0, ih - ip + 1)
+
     tx, ty = scale * ix, scale * iy
 
     ret = [

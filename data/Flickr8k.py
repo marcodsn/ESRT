@@ -41,7 +41,7 @@ class Flickr8k(data.Dataset):
         self.root = self.opt.root
         self.ext = self.opt.ext  # '.png' or '.npy'(default)
         self.train = True if self.opt.phase == 'train' else False
-        self.repeat = 10  # self.opt.test_every // (self.opt.n_train // self.opt.batch_size)
+        self.repeat = 1  # self.opt.test_every // (self.opt.n_train // self.opt.batch_size)
         self._set_filesystem(self.root)
         self.images_hr, self.images_lr = self._scan()
 

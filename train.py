@@ -20,9 +20,9 @@ from importlib import import_module
 parser = argparse.ArgumentParser(description="ESRT")
 parser.add_argument("--batch_size", type=int, default=16,
                     help="training batch size")
-parser.add_argument("--testBatchSize", type=int, default=1,
+parser.add_argument("--test_batch_size", type=int, default=1,
                     help="testing batch size")
-parser.add_argument("-nEpochs", type=int, default=1000,
+parser.add_argument("-n_epochs", type=int, default=1000,
                     help="number of epochs to train")
 parser.add_argument("--lr", type=float, default=2e-4,
                     help="Learning Rate. Default=2e-4")
@@ -86,10 +86,11 @@ wandb.init(
         "learning_rate": args.lr,
         "architecture": "ESRT",
         "dataset": "DIV2K",
-        "epochs": args.nEpochs,
+        "epochs": args.n_epochs,
         "batch_size": args.batch_size,
         "scale": args.scale,
         "patch_size": args.patch_size,
+        "n_train": args.n_train,
         "optimizer": "Adam",
     },
 
@@ -114,7 +115,7 @@ testset = Common_val.DatasetFromFolderVal(testset_path,
                                           args.scale)
 training_data_loader = DataLoader(dataset=trainset, num_workers=args.threads, batch_size=args.batch_size, shuffle=True,
                                   pin_memory=True, drop_last=True)
-testing_data_loader = DataLoader(dataset=testset, num_workers=args.threads, batch_size=args.testBatchSize,
+testing_data_loader = DataLoader(dataset=testset, num_workers=args.threads, batch_size=args.test_batch_size,
                                  shuffle=False)
 
 print("===> Building models")
@@ -290,7 +291,7 @@ print("===> Training")
 print_network(model)
 code_start = datetime.datetime.now()
 timer = utils.Timer()
-for epoch in range(args.start_epoch, args.nEpochs + 1):
+for epoch in range(args.start_epoch, args.n_epochs + 1):
     t_epoch_start = timer.t()
     epoch_start = datetime.datetime.now()
     loss = train(epoch)
@@ -309,7 +310,7 @@ for epoch in range(args.start_epoch, args.nEpochs + 1):
     epoch_end = datetime.datetime.now()
     print('Epoch cost times: %s' % str(epoch_end - epoch_start))
     t = timer.t()
-    prog = (epoch - args.start_epoch + 1) / (args.nEpochs + 1 - args.start_epoch + 1)
+    prog = (epoch - args.start_epoch + 1) / (args.n_epochs + 1 - args.start_epoch + 1)
     t_epoch = utils.time_text(t - t_epoch_start)
     t_elapsed, t_all = utils.time_text(t), utils.time_text(t / prog)
     print('{} {}/{}'.format(t_epoch, t_elapsed, t_all))

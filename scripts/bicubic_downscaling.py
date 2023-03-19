@@ -6,7 +6,7 @@ from PIL import Image
 
 # Define command line arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--scale_factor", type=float, required=True, help="scale factor for downscaling")
+parser.add_argument("--scale", type=float, required=True, help="scale factor for downscaling")
 parser.add_argument("--input_dir", type=str, required=True, help="path to input directory")
 parser.add_argument("--output_dir", type=str, required=True, help="path to output directory")
 parser.add_argument("--print_step", type=int, default=10, help="print progress every print_step images")
@@ -25,12 +25,12 @@ for file_name in os.listdir(args.input_dir):
         img = Image.open(img_path)
 
         # Define scale factor
-        scale_factor = args.scale_factor
+        scale = args.scale
 
         # Calculate output size
         width, height = img.size
-        new_width = int(width / scale_factor)
-        new_height = int(height / scale_factor)
+        new_width = int(width / scale)
+        new_height = int(height / scale)
 
         # Resize image using bicubic interpolation
         resized_img = TF.resize(img, (new_height, new_width), interpolation=Image.BICUBIC)
