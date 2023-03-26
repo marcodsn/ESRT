@@ -1,4 +1,6 @@
 import argparse
+import time
+
 import torch
 import os
 import numpy as np
@@ -17,8 +19,12 @@ parser.add_argument("--checkpoint", type=str, default='checkpoints/DIV2K_checkpo
                     help='checkpoint folder to use')
 parser.add_argument('--cuda', action='store_true', default=True,
                     help='use cuda')
+parser.add_argument('--cpu', action='store_true', default=False,
+                    help='use cpu')
 parser.add_argument("--scale", type=int, default=2,
                     help='upscaling factor')
+parser.add_argument("--single_dataset", type=str, default='None',
+                    help='test on a single dataset')
 parser.add_argument("--is_y", action='store_true', default=True,
                     help='evaluate on y channel, if False evaluate on RGB channels')
 opt = parser.parse_args()
@@ -68,34 +74,64 @@ def forward_chop(model, x, scale, shave=10, min_size=60000):
     return output
 
 
-cuda = opt.cuda
+cuda = not opt.cpu
 device = torch.device('cuda' if cuda else 'cpu')
 
-filepath = opt.test_hr_folder
-if filepath.split('/')[-2] == 'Set5' or filepath.split('/')[-2] == 'Set14':
-    ext = '.bmp'
-else:
-    ext = '.png'
 
-filelist = utils.get_list(filepath, ext=ext)
-psnr_list = np.zeros(len(filelist))
-ssim_list = np.zeros(len(filelist))
-time_list = np.zeros(len(filelist))
+# filepath = opt.test_hr_folder
+# if filepath.split('/')[-2] == 'Set5' or filepath.split('/')[-2] == 'Set14':
+#     ext = '.bmp'
+# else:
+#     ext = '.png'
+#
+# filelist = utils.get_list(filepath, ext=ext)
+# psnr_list = np.zeros(len(filelist))
+# ssim_list = np.zeros(len(filelist))
+# time_list = np.zeros(len(filelist))
 
 model = esrt.ESRT(upscale=opt.scale)  #
 model_dict = utils.load_state_dict(opt.checkpoint)
 model.load_state_dict(model_dict, strict=False)  # True)
+model = torch.compile(model, mode="reduce-overhead")
 
-i = 0
+if cuda:
+    torch.set_float32_matmul_precision('high')
+    model = model.to(device)
+
 start = torch.cuda.Event(enable_timing=True)
 end = torch.cuda.Event(enable_timing=True)
 
 # For dataset dir in test_folder
-for dataset in os.listdir(opt.test_hr_folder):
-    for imname in filelist:
+for dataset in os.listdir(opt.test_folder):
+    if opt.single_dataset != 'None':
+        dataset = opt.single_dataset
+    i = 0
+
+    if dataset != 'Manga109':
+        ext = '.png'
+    else:
+        ext = '.jpg'
+
+    # hr_list = utils.get_list(opt.test_folder + dataset + '/HR/', ext=ext)
+    hr_list = utils.get_list(os.path.join(opt.test_folder, dataset, 'HR'), ext=ext)
+    psnr_list = np.zeros(len(hr_list))
+    ssim_list = np.zeros(len(hr_list))
+    time_list = np.zeros(len(hr_list))
+
+    # test_lr_folder = opt.test_folder + dataset + '/LR/X' + str(opt.scale) + '/'
+    test_lr_folder = os.path.join(opt.test_folder, dataset, 'LR', 'X' + str(opt.scale))
+
+    # output_folder = opt.output_folder + dataset + '/ESRT_x' + str(opt.scale) + '/'
+    output_folder = os.path.join(opt.output_folder, dataset, 'ESRT_X' + str(opt.scale))
+    print(output_folder)
+
+    for imname in hr_list:
+        print(imname)
         im_gt = cv2.imread(imname, cv2.IMREAD_COLOR)[:, :, [2, 1, 0]]  # BGR to RGB
         im_gt = utils.modcrop(im_gt, opt.scale)
-        im_l = cv2.imread(opt.test_lr_folder + imname.split('/')[-1].split('.')[0] + 'x' + str(opt.scale) + ext,
+        # im_l = cv2.imread(test_lr_folder + imname.split('/')[-1].split('.')[0] + 'x' + str(opt.scale) + ext,
+        #                   cv2.IMREAD_COLOR)[:, :, [2, 1, 0]]  # BGR to RGB
+        im_l = cv2.imread(test_lr_folder + '/' + imname.split('/')[-1].split('.')[0] + ext,
                           cv2.IMREAD_COLOR)[:, :, [2, 1, 0]]  # BGR to RGB
         if len(im_gt.shape) < 3:
             im_gt = im_gt[..., np.newaxis]
@@ -108,12 +144,15 @@ for dataset in os.listdir(opt.test_hr_folder):
         im_input = torch.from_numpy(im_input).float()
 
         if cuda:
-            model = model.to(device)
             im_input = im_input.to(device)
 
         with torch.no_grad():
             start.record()
+            st = time.time()
+
             out = forward_chop(model, im_input, opt.scale)  # model(im_input)
+
+            print('Time cost: ', time.time() - st)
             end.record()
             torch.cuda.synchronize()
             time_list[i] = start.elapsed_time(end)  # milliseconds
@@ -131,13 +170,28 @@ for dataset in os.listdir(opt.test_hr_folder):
         psnr_list[i] = utils.compute_psnr(im_pre, im_label)
         ssim_list[i] = utils.compute_ssim(im_pre, im_label)
 
-        output_folder = os.path.join(opt.output_folder,
-                                     imname.split('/')[-1].split('.')[0] + 'x' + str(opt.scale) + '.png')
+        # output_folder = os.path.join(opt.output_folder,
+        #                              imname.split('/')[-1].split('.')[0] + 'x' + str(opt.scale) + '.png')
 
-        if not os.path.exists(opt.output_folder):
-            os.makedirs(opt.output_folder)
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
 
-        cv2.imwrite(output_folder, out_img[:, :, [2, 1, 0]])
+        # cv2.imwrite(output_folder + '/' + imname.split('/')[-1].split('.')[0] + '.png', out_img[:, :, [2, 1, 0]])
+        cv2.imwrite(os.path.join(output_folder, imname.split('/')[-1].split('.')[0] + '.png'), out_img[:, :, [2, 1, 0]])
         i += 1
 
-print("Mean PSNR: {}, SSIM: {}, TIME: {} ms".format(np.mean(psnr_list), np.mean(ssim_list), np.mean(time_list)))
+    print("{}. Mean PSNR: {}, SSIM: {}, TIME: {} ms".format(dataset,
+                                                            np.mean(psnr_list),
+                                                            np.mean(ssim_list),
+                                                            np.mean(time_list)
+                                                            ))
+
+    # results = open(opt.output_folder + 'results_X' + str(opt.scale) + '.txt', 'a')
+    results = open(os.path.join(opt.output_folder, 'results_X' + str(opt.scale) + '.txt'), 'a')
+    results.write("{} - Mean PSNR: {}, SSIM: {}, TIME: {} ms\n".format(dataset,
+                                                                       np.mean(psnr_list),
+                                                                       np.mean(ssim_list),
+                                                                       np.mean(time_list)))
+    results.close()
+    if opt.single_dataset != 'None':
+        break

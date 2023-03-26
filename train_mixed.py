@@ -124,6 +124,12 @@ args.is_train = True
 
 model = esrt.ESRT(upscale=args.scale)  # architecture.IMDN(upscale=args.scale)
 
+# Testing more optimization methods
+# st = datetime.datetime.now()
+# model = torch.compile(model)
+# print("===> Compiling model time: ", datetime.datetime.now() - st)
+# torch.set_float32_matmul_precision('high')
+
 l1_criterion = nn.L1Loss()
 
 print("===> Setting GPU")
@@ -258,6 +264,7 @@ def valid(scale):
         crop_size = args.scale
         cropped_sr_img = utils.shave(sr_img, crop_size)
         cropped_gt_img = utils.shave(gt_img, crop_size)
+        # print(pre.shape, hr_tensor.shape)
         loss_valid = l1_criterion(pre, hr_tensor).item()
         if args.isY is True:
             im_label = utils.quantize(sc.rgb2ycbcr(cropped_gt_img)[:, :, 0])
