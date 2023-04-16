@@ -103,3 +103,20 @@ def load_state_dict(path):
             name = k
         new_state_dcit[name] = v
     return new_state_dcit
+
+
+def extract_patches(image, patch_size):
+    height, width, _ = image.shape
+    patches = []
+
+    for i in range(0, height - patch_size + 1, patch_size):
+        for j in range(0, width - patch_size + 1, patch_size):
+            patch = image[i:i + patch_size, j:j + patch_size]
+            patches.append(patch)
+
+    return patches
+
+
+def convert_rgb_to_y(image):
+    y = 16 + (65.481 * image[..., 0] + 128.553 * image[..., 1] + 24.966 * image[..., 2]) / 255.0
+    return y

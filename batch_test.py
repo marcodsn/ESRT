@@ -101,6 +101,13 @@ if cuda:
 start = torch.cuda.Event(enable_timing=True)
 end = torch.cuda.Event(enable_timing=True)
 
+# Add date and time of test
+now = time.localtime()
+s = time.strftime('%Y-%m-%d %H:%M:%S\n', now)
+results = open(os.path.join(opt.output_folder, 'results_X' + str(opt.scale) + '.txt'), 'a')
+results.write(s)
+results.close()
+
 # For dataset dir in test_folder
 for dataset in os.listdir(opt.test_folder):
     if opt.single_dataset != 'None':
@@ -179,6 +186,8 @@ for dataset in os.listdir(opt.test_folder):
         # cv2.imwrite(output_folder + '/' + imname.split('/')[-1].split('.')[0] + '.png', out_img[:, :, [2, 1, 0]])
         cv2.imwrite(os.path.join(output_folder, imname.split('/')[-1].split('.')[0] + '.png'), out_img[:, :, [2, 1, 0]])
         i += 1
+
+        torch.cuda.empty_cache()
 
     print("{}. Mean PSNR: {}, SSIM: {}, TIME: {} ms".format(dataset,
                                                             np.mean(psnr_list),
